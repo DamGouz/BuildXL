@@ -48,9 +48,10 @@ void SendReportString(_In_z_ wchar_t const* dataString)
     if (!WriteFile(g_reportFileHandle, dataString, (DWORD)reportLineLength, &bytesWritten, &overlapped))
     {
         DWORD error = GetLastError();
-        std::wstring errorMsg = DebugStringFormat(L"SendReportString: Failed to write file access report line '%s' (error code: 0x%08X)", dataString, (int)error);
-        Dbg(errorMsg.c_str());
-        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_4, errorMsg.c_str(), DETOURS_WINDOWS_LOG_MESSAGE_4);
+        Dbg(L"Failed to write file access report line: %08X. Exiting with code %d.", (int)error, DETOURS_PIPE_WRITE_ERROR_4);
+        wprintf(L"Failed to write file access report line: %08X. Exiting with code %d.", (int)error, DETOURS_PIPE_WRITE_ERROR_4);
+        fwprintf(stderr, L"Failed to write file access report line: %08X. Exiting with code %d.", (int)error, DETOURS_PIPE_WRITE_ERROR_4);
+        HandleDetoursInjectionAndCommunicationErrors(DETOURS_PIPE_WRITE_ERROR_4, L"Failure writing message to pipe: exit(-46).", DETOURS_WINDOWS_LOG_MESSAGE_4);
     }
 
     SetLastError(lastError);
@@ -80,6 +81,11 @@ void ReportFileAccess(
     }
     else {
         fileName = policyResult.GetCanonicalizedPath().GetPathString();
+    }
+
+    // If newline character in fileName
+    if (wcspbrk((wchar_t*)fileName, L"\u000A\u000B\u000C\u000D\u0085\u2028\u2029")) {
+        fileName = L"";
     }
 
     if (fileName == nullptr) {
